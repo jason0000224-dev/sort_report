@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>插入排序視覺化</title>
+<style>
+  :root {
+    --bg:      #0d1117;
+    --card:    #161b22;
+    --border:  #30363d;
+    --text:    #e6edf3;
+    --sub:     #8b949e;
+    --blue:    #58a6ff;
+    --yellow:  #f0c040;
+    --red:     #f85149;
+    --green:   #3fb950;
+    --purple:  #a371f7;
+    --bar-def: #1f6feb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 48px;
+  }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    margin-bottom: 4px;
+  }
+  .subtitle { color: var(--sub); font-size: .85rem; margin-bottom: 20px; }
+
+  /* ── Controls ─────────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 14px;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .82rem;
+    color: var(--sub);
+  }
+  .ctrl-group input[type=range] {
+    accent-color: var(--blue);
+    width: 100px;
+    cursor: pointer;
+  }
+  .ctrl-group input[type=number] {
+    width: 60px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: .82rem;
+  }
+  button {
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  button:disabled { opacity: .35; cursor: default; }
+  #btn-shuffle { background: var(--purple); color: #fff; }
+  #btn-start   { background: var(--green);  color: #000; }
+  #btn-pause   { background: var(--yellow); color: #000; }
+  #btn-step    { background: var(--blue);   color: #000; }
+  #btn-reset   { background: #373e47;       color: var(--text); }
+
+  /* ── Legend ────────────────────────────────────────── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: .78rem;
+    color: var(--sub);
+    margin-top: 10px;
+  }
+  .legend span::before {
+    content: "●";
+    margin-right: 4px;
+  }
+  .legend .l-sorted::before  { color: var(--green);  }
+  .legend .l-current::before { color: var(--yellow); }
+  .legend .l-shift::before   { color: #ff8c00;       }
+  .legend .l-insert::before  { color: var(--red);    }
+  .legend .l-default::before { color: var(--bar-def);}
+
+  /* ── Status ─────────────────────────────────────── */
+  #status {
+    font-size: .84rem;
+    color: var(--sub);
+    height: 18px;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  #status b { color: var(--text); }
+
+  /* ── Bar Chart ────────────────────────────────────── */
+  #chart {
+    width: 100%;
+    max-width: 900px;
+    height: 320px;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 8px 0 30px 0;
+    position: relative;
+  }
+  .bar {
+    flex: 1 1 0;
+    border-radius: 3px 3px 0 0;
+    transition: height .12s ease, background-color .12s ease;
+    background: var(--bar-def);
+    min-width: 2px;
+    position: relative;
+  }
+  .bar.sorted   { background: var(--green);  }
+  .bar.current  { background: var(--yellow); }
+  .bar.shifting { background: #ff8c00;       }
+  .bar.inserting{ background: var(--red);    }
+  .bar-value {
+    position: absolute;
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: .7rem;
+    color: var(--sub);
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  /* ── Algorithm panel ────────────────────────────────── */
+  .algo-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    width: 100%;
+    max-width: 900px;
+    margin-top: 14px;
+  }
+  .algo-card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--blue);
+  }
+  .algo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media(max-width:600px){ .algo-grid{ grid-template-columns:1fr; } }
+  .algo-block h3 {
+    font-size: .8rem;
+    color: var(--sub);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: .78rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    color: #e6edf3;
+  }
+  .code-line {
+    display: flex;
+    align-items: center;
+  }
+  .code-line-num {
+    display: inline-block;
+    width: 30px;
+    text-align: right;
+    margin-right: 10px;
+    opacity: 0.5;
+    user-select: none;
+  }
+  .code-line-content {
+    flex: 1;
+    padding-right: 8px;
+  }
+  .code-line.highlight-line {
+    background: rgba(88,166,255,.3);
+    border-left: 2px solid var(--blue);
+    margin: 0 -20px;
+    padding: 0 20px;
+  }
+  .stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: .82rem;
+    color: var(--sub);
+    margin-top: 10px;
+  }
+  .stats strong { color: var(--text); font-size: 1.15rem; }
+  .step-indicator {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: .82rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    margin-top: 10px;
+    min-height: 36px;
+    line-height: 1.6;
+  }
+  .step-indicator .tag {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-weight: 700;
+    font-size: .75rem;
+    margin-right: 6px;
+  }
+  .tag-current{ background: var(--yellow); color: #000; }
+  .tag-shift  { background: #ff8c00;       color: #fff; }
+  .tag-insert { background: var(--red);    color: #fff; }
+  .tag-sorted { background: var(--green);  color: #000; }
+  .tag-done   { background: var(--purple); color: #fff; }
+</style>
+</head>
+<body>
+
+<h1>📍 插入排序視覺化</h1>
+<p class="subtitle">Insertion Sort — 逐步觀察取出與插入過程</p>
+<p style="margin-bottom: 16px;"><a href="index.html" style="color: var(--blue); text-decoration: none; font-size: 0.85rem;">← 回首頁</a></p>
+
+<!-- Controls -->
+<div class="card">
+  <div class="controls">
+    <div class="ctrl-group">
+      <label for="inp-size">陣列大小</label>
+      <input type="number" id="inp-size" min="5" max="120" value="40" />
+    </div>
+    <div class="ctrl-group">
+      <label for="inp-speed">動畫速度</label>
+      <input type="range" id="inp-speed" min="10" max="900" value="250" />
+      <span id="speed-label">250ms</span>
+    </div>
+    <button id="btn-shuffle">🔀 亂數重置</button>
+    <button id="btn-start">▶ 開始</button>
+    <button id="btn-pause" disabled>⏸ 暫停</button>
+    <button id="btn-step">⏭ 單步</button>
+    <button id="btn-reset">↺ 重置</button>
+  </div>
+  <div class="legend">
+    <span class="l-default">未排序</span>
+    <span class="l-sorted">已排序</span>
+    <span class="l-current">目前元素</span>
+    <span class="l-shift">位移</span>
+    <span class="l-insert">插入</span>
+  </div>
+</div>
+
+<!-- Status -->
+<div id="status">按「開始」或「單步」以執行排序</div>
+
+<!-- Bar Chart -->
+<div id="chart"></div>
+
+<!-- Step Indicator + Stats -->
+<div class="card" style="margin-top:14px">
+  <div class="step-indicator" id="step-msg">—</div>
+  <div class="stats">
+    <div>比較次數 <br/><strong id="cnt-compare">0</strong></div>
+    <div>位移次數 <br/><strong id="cnt-shift">0</strong></div>
+    <div>目前位置 <br/><strong id="cnt-pass">0</strong></div>
+    <div>已排序元素 <br/><strong id="cnt-sorted">1</strong></div>
+  </div>
+</div>
+
+<!-- Algorithm Explanation -->
+<div class="algo-card">
+  <h2>插入排序演算法解說</h2>
+  <div class="algo-grid">
+    <div class="algo-block">
+      <h3>C 語言實作</h3>
+      <pre id="code-c"><span class="code-line" data-line="1"><span class="code-line-num">1</span><span class="code-line-content">void insertion_sort(int arr[], int n) {</span></span>
+<span class="code-line" data-line="2"><span class="code-line-num">2</span><span class="code-line-content">    int i, j, key;</span></span>
+<span class="code-line" data-line="3"><span class="code-line-num">3</span><span class="code-line-content">    for (i = 1; i < n; i++) {         // 從第二個元素開始</span></span>
+<span class="code-line" data-line="4"><span class="code-line-num">4</span><span class="code-line-content">        key = arr[i];                 // 取出當前元素</span></span>
+<span class="code-line" data-line="5"><span class="code-line-num">5</span><span class="code-line-content">        j = i - 1;</span></span>
+<span class="code-line" data-line="6"><span class="code-line-num">6</span><span class="code-line-content">        while (j >= 0 && arr[j] > key) { // 向後掃描</span></span>
+<span class="code-line" data-line="7"><span class="code-line-num">7</span><span class="code-line-content">            arr[j + 1] = arr[j];     // 向右位移</span></span>
+<span class="code-line" data-line="8"><span class="code-line-num">8</span><span class="code-line-content">            j--;                      // 繼續向左檢查</span></span>
+<span class="code-line" data-line="9"><span class="code-line-num">9</span><span class="code-line-content">        }</span></span>
+<span class="code-line" data-line="10"><span class="code-line-num">10</span><span class="code-line-content">        arr[j + 1] = key;             // 將 key 插入正確位置</span></span>
+<span class="code-line" data-line="11"><span class="code-line-num">11</span><span class="code-line-content">    }</span></span>
+<span class="code-line" data-line="12"><span class="code-line-num">12</span><span class="code-line-content">}</span></span></pre>
+    </div>
+    <div class="algo-block">
+      <h3>複雜度分析</h3>
+      <pre>時間複雜度
+  最佳 O(n)    ← 已排序時
+  平均 O(n²)
+  最差 O(n²)
+
+空間複雜度
+  O(1)         ← 原地排序
+
+穩定性
+  穩定（Stable）
+
+特性
+  簡單直觀、在線可用
+  適合小規模與近乎有序資料</pre>
+    </div>
+  </div>
+  <div class="algo-block" style="margin-top:14px">
+    <h3>核心概念</h3>
+    <pre>從第二個元素開始，逐次「取出」元素，與已排序部分從右到左比較。
+當元素 > 已排序元素時，該已排序元素「位移」右移一格，直到找到正確位置後「插入」。
+最終未排序部分全部被取出並插入至已排序部分中，完成排序。</pre>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────
+let arr = [];
+let gen = null;
+let running = false;
+let paused = false;
+let timer = null;
+let cntCompare = 0;
+let cntShift = 0;
+let cntPass = 0;
+let sortedCount = 1; // At least first element is sorted
+
+// ─── DOM refs ─────────────────────────────────────────────
+const chart    = document.getElementById('chart');
+const status   = document.getElementById('status');
+const stepMsg  = document.getElementById('step-msg');
+const elCC     = document.getElementById('cnt-compare');
+const elCS     = document.getElementById('cnt-shift');
+const elCP     = document.getElementById('cnt-pass');
+const elSort   = document.getElementById('cnt-sorted');
+const inpSize  = document.getElementById('inp-size');
+const inpSpeed = document.getElementById('inp-speed');
+const spdLabel = document.getElementById('speed-label');
+const btnStart  = document.getElementById('btn-start');
+const btnPause  = document.getElementById('btn-pause');
+const btnStep   = document.getElementById('btn-step');
+const btnShuffle= document.getElementById('btn-shuffle');
+const btnReset  = document.getElementById('btn-reset');
+
+// ─── Array helpers ────────────────────────────────────────
+function makeArray(n) {
+  const a = [];
+  for (let i = 0; i < n; i++) a.push(Math.floor(Math.random() * 98) + 2);
+  return a;
+}
+
+function renderBars(highlight = {}) {
+  // highlight: { current:i, shifting:[...], inserting:i, showValues:boolean }
+  const n = arr.length;
+  const max = Math.max(...arr);
+  const bars = chart.querySelectorAll('.bar');
+
+  if (bars.length !== n) {
+    chart.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div');
+      d.className = 'bar';
+      d.style.position = 'relative';
+      chart.appendChild(d);
+    }
+  }
+
+  chart.querySelectorAll('.bar').forEach((bar, i) => {
+    bar.style.height = (arr[i] / max * 100) + '%';
+    bar.className = 'bar';
+    
+    // 清除之前的數值標籤
+    const oldValue = bar.querySelector('.bar-value');
+    if (oldValue) oldValue.remove();
+    
+    // 添加數值標籤
+    if (highlight.showValues) {
+      const valLabel = document.createElement('div');
+      valLabel.className = 'bar-value';
+      valLabel.textContent = arr[i];
+      bar.appendChild(valLabel);
+    }
+    
+    if (i < sortedCount) {
+      bar.classList.add('sorted');
+    } else if (highlight.inserting !== undefined && i === highlight.inserting) {
+      bar.classList.add('inserting');
+    } else if (highlight.shifting && highlight.shifting.includes(i)) {
+      bar.classList.add('shifting');
+    } else if (highlight.current !== undefined && i === highlight.current) {
+      bar.classList.add('current');
+    }
+  });
+}
+
+function resetStats() {
+  cntCompare = 0; cntShift = 0; cntPass = 0; sortedCount = 1;
+  updateStats();
+}
+
+function updateStats() {
+  elCC.textContent = cntCompare;
+  elCS.textContent = cntShift;
+  elCP.textContent = cntPass;
+  elSort.textContent = sortedCount;
+}
+
+// ─── Generator ────────────────────────────────────────────
+function* insertionSortGen(a) {
+  const n = a.length;
+  for (let i = 1; i < n; i++) {
+    yield { type: 'pick', i };
+    let key = a[i];
+    let j = i - 1;
+    
+    while (j >= 0 && a[j] > key) {
+      yield { type: 'compare', i, j };
+      a[j + 1] = a[j];
+      yield { type: 'shift', i, j };
+      j--;
+    }
+    
+    a[j + 1] = key;
+    yield { type: 'insert', i, j };
+  }
+  yield { type: 'done' };
+}
+
+// ─── 程式碼高亮 ───────────────────────────────────────────
+function highlightCodeLine(lines = []) {
+  const codeBlock = document.getElementById('code-c');
+  if (!codeBlock) return;
+  codeBlock.querySelectorAll('.code-line').forEach(line => {
+    line.classList.remove('highlight-line');
+  });
+  lines.forEach(lineNum => {
+    const line = codeBlock.querySelector(`[data-line="${lineNum}"]`);
+    if (line) line.classList.add('highlight-line');
+  });
+}
+
+// ─── Step execution ───────────────────────────────────────
+function execStep() {
+  if (!gen) return;
+  const { value, done } = gen.next();
+  if (done) { finish(); return; }
+
+  const v = value;
+  if (v.type === 'pick') {
+    cntPass = v.i;
+    stepMsg.innerHTML = `<span class="tag tag-current">取出</span>位置 <b>${v.i}</b> 的元素 值為 <b>${arr[v.i]}</b>`;
+    highlightCodeLine([3, 4, 5]);
+    renderBars({ current: v.i, showValues: true });
+  } else if (v.type === 'compare') {
+    cntCompare++;
+    stepMsg.innerHTML = `<span class="tag tag-current">比較</span> 位置 <b>${v.j}</b> (值 ${arr[v.j]}) > 取出值 ${arr[v.i]} ? 是，需要位移`;
+    highlightCodeLine([6]);
+    renderBars({ current: v.i, inserting: v.j, showValues: true });
+  } else if (v.type === 'shift') {
+    cntShift++;
+    const shifting = [];
+    for (let k = v.j; k < v.i; k++) {
+      shifting.push(k + 1);
+    }
+    stepMsg.innerHTML = `<span class="tag tag-shift">位移</span> 將位置 <b>${v.j}</b> 的值 ${arr[v.j + 1]} 向右移至位置 ${v.j + 1}`;
+    highlightCodeLine([7, 8]);
+    renderBars({ current: v.i, shifting, showValues: true });
+  } else if (v.type === 'insert') {
+    sortedCount = v.i + 1;
+    stepMsg.innerHTML = `<span class="tag tag-insert">插入</span> 取出值 ${arr[v.j + 1]} 正確插入位置 <b>${v.j + 1}</b>`;
+    highlightCodeLine([10]);
+    renderBars({ inserting: v.j + 1, showValues: true });
+  } else if (v.type === 'done') {
+    finish(); return;
+  }
+  updateStats();
+}
+
+function finish() {
+  sortedCount = arr.length;
+  renderBars({ showValues: true });
+  stepMsg.innerHTML = `<span class="tag tag-done">完成</span> 排序結束！共 <b>${cntCompare}</b> 次比較、<b>${cntShift}</b> 次位移`;
+  status.innerHTML = `✅ 排序完成`;
+  updateStats();
+  setRunning(false);
+  gen = null;
+}
+
+// ─── Auto run ─────────────────────────────────────────────
+function scheduleNext() {
+  if (!running || paused) return;
+  const delay = 1010 - parseInt(inpSpeed.value);
+  timer = setTimeout(() => {
+    execStep();
+    if (gen) scheduleNext();
+  }, delay);
+}
+
+function setRunning(val) {
+  running = val;
+  btnStart.disabled  = val && !paused;
+  btnPause.disabled  = !val || paused;
+  btnStep.disabled   = val && !paused;
+  btnShuffle.disabled = val && !paused;
+}
+
+// ─── Controls ─────────────────────────────────────────────
+btnShuffle.addEventListener('click', () => {
+  clearTimeout(timer);
+  paused = false; running = false;
+  arr = makeArray(clampSize());
+  gen = null;
+  resetStats();
+  renderBars({ showValues: true });
+  status.textContent = '按「開始」或「單步」以執行排序';
+  stepMsg.textContent = '—';
+  setRunning(false);
+});
+
+btnStart.addEventListener('click', () => {
+  if (!gen) {
+    gen = insertionSortGen(arr);
+    resetStats();
+  }
+  paused = false;
+  setRunning(true);
+  status.textContent = '排序中…';
+  scheduleNext();
+});
+
+btnPause.addEventListener('click', () => {
+  paused = true;
+  clearTimeout(timer);
+  setRunning(false); // re-enable buttons
+  btnPause.disabled = true;
+  btnStart.disabled = false;
+  btnStep.disabled  = false;
+  status.textContent = '已暫停，按「開始」繼續或「單步」前進';
+});
+
+btnStep.addEventListener('click', () => {
+  clearTimeout(timer);
+  paused = true;
+  running = false;
+  if (!gen) {
+    gen = insertionSortGen(arr);
+    resetStats();
+    status.textContent = '單步模式';
+  }
+  execStep();
+  setRunning(false);
+  btnPause.disabled = true;
+});
+
+btnReset.addEventListener('click', () => {
+  clearTimeout(timer);
+  paused = false; running = false;
+  gen = null;
+  // keep same array values
+  sortedCount = 1;
+  resetStats();
+  renderBars({ showValues: true });
+  status.textContent = '已重置，可重新開始排序';
+  stepMsg.textContent = '—';
+  setRunning(false);
+});
+
+inpSpeed.addEventListener('input', () => {
+  spdLabel.textContent = (1010 - parseInt(inpSpeed.value)) + 'ms';
+});
+
+inpSize.addEventListener('change', () => {
+  clearTimeout(timer);
+  paused = false; running = false;
+  arr = makeArray(clampSize());
+  gen = null;
+  resetStats();
+  renderBars({ showValues: true });
+  status.textContent = '按「開始」或「單步」以執行排序';
+  stepMsg.textContent = '—';
+  setRunning(false);
+});
+
+function clampSize() {
+  let n = parseInt(inpSize.value) || 40;
+  n = Math.max(5, Math.min(120, n));
+  inpSize.value = n;
+  return n;
+}
+
+// ─── Init ─────────────────────────────────────────────────
+arr = makeArray(40);
+renderBars({ showValues: true });
+updateStats();
+spdLabel.textContent = (1010 - parseInt(inpSpeed.value)) + 'ms';
+</script>
+</body>
+</html>
