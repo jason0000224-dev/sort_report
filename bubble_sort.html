@@ -126,7 +126,7 @@
     display: flex;
     align-items: flex-end;
     gap: 2px;
-    padding: 8px 0 0;
+    padding: 8px 0 30px 0;
     position: relative;
   }
   .bar {
@@ -140,6 +140,16 @@
   .bar.comparing { background: var(--yellow); }
   .bar.swapping  { background: var(--red);    }
   .bar.sorted    { background: var(--green);  }
+  .bar-value {
+    position: absolute;
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: .7rem;
+    color: var(--sub);
+    white-space: nowrap;
+    user-select: none;
+  }
 
   /* ── Algorithm panel ────────────────────────────────── */
   .algo-card {
@@ -180,12 +190,27 @@
     overflow-x: auto;
     color: #e6edf3;
   }
-  .highlight-line {
-    background: rgba(88,166,255,.15);
-    display: block;
+  .code-line {
+    display: flex;
+    align-items: center;
+  }
+  .code-line-num {
+    display: inline-block;
+    width: 30px;
+    text-align: right;
+    margin-right: 10px;
+    opacity: 0.5;
+    user-select: none;
+  }
+  .code-line-content {
+    flex: 1;
+    padding-right: 8px;
+  }
+  .code-line.highlight-line {
+    background: rgba(88,166,255,.3);
     border-left: 2px solid var(--blue);
-    margin: 0 -12px;
-    padding: 0 12px;
+    margin: 0 -20px;
+    padding: 0 20px;
   }
   .stats {
     display: flex;
@@ -274,15 +299,19 @@
   <h2>氣泡排序演算法解說</h2>
   <div class="algo-grid">
     <div class="algo-block">
-      <h3>Python 實作</h3>
-      <pre id="code-py">def bubble_sort(arr):
-    n = len(arr)
-    for i in range(n - 1):           # 回合
-        for j in range(n - 1 - i):   # 比較
-            if arr[j] > arr[j + 1]:  # 需交換？
-                arr[j], arr[j+1] = \
-                  arr[j+1], arr[j]   # 交換
-    return arr</pre>
+      <h3>C 語言實作</h3>
+      <pre id="code-c"><span class="code-line" data-line="1"><span class="code-line-num">1</span><span class="code-line-content">void bubble_sort(int arr[], int n) {</span></span>
+<span class="code-line" data-line="2"><span class="code-line-num">2</span><span class="code-line-content">    int i, j, temp;</span></span>
+<span class="code-line" data-line="3"><span class="code-line-num">3</span><span class="code-line-content">    for (i = 0; i < n - 1; i++) {      // 回合</span></span>
+<span class="code-line" data-line="4"><span class="code-line-num">4</span><span class="code-line-content">        for (j = 0; j < n - 1 - i; j++) { // 比較</span></span>
+<span class="code-line" data-line="5"><span class="code-line-num">5</span><span class="code-line-content">            if (arr[j] > arr[j + 1]) {     // 需交換？</span></span>
+<span class="code-line" data-line="6"><span class="code-line-num">6</span><span class="code-line-content">                temp = arr[j];</span></span>
+<span class="code-line" data-line="7"><span class="code-line-num">7</span><span class="code-line-content">                arr[j] = arr[j + 1];</span></span>
+<span class="code-line" data-line="8"><span class="code-line-num">8</span><span class="code-line-content">                arr[j + 1] = temp;         // 交換</span></span>
+<span class="code-line" data-line="9"><span class="code-line-num">9</span><span class="code-line-content">            }</span></span>
+<span class="code-line" data-line="10"><span class="code-line-num">10</span><span class="code-line-content">        }</span></span>
+<span class="code-line" data-line="11"><span class="code-line-num">11</span><span class="code-line-content">    }</span></span>
+<span class="code-line" data-line="12"><span class="code-line-num">12</span><span class="code-line-content">}</span></span></pre>
     </div>
     <div class="algo-block">
       <h3>複雜度分析</h3>
@@ -346,7 +375,7 @@ function makeArray(n) {
 }
 
 function renderBars(highlight = {}) {
-  // highlight: { comparing:[i,j], swapping:[i,j] }
+  // highlight: { comparing:[i,j], swapping:[i,j], showValues:boolean }
   const n = arr.length;
   const max = Math.max(...arr);
   const bars = chart.querySelectorAll('.bar');
@@ -356,6 +385,7 @@ function renderBars(highlight = {}) {
     for (let i = 0; i < n; i++) {
       const d = document.createElement('div');
       d.className = 'bar';
+      d.style.position = 'relative';
       chart.appendChild(d);
     }
   }
@@ -363,6 +393,19 @@ function renderBars(highlight = {}) {
   chart.querySelectorAll('.bar').forEach((bar, i) => {
     bar.style.height = (arr[i] / max * 100) + '%';
     bar.className = 'bar';
+    
+    // 清除之前的數值標籤
+    const oldValue = bar.querySelector('.bar-value');
+    if (oldValue) oldValue.remove();
+    
+    // 添加數值標籤
+    if (highlight.showValues) {
+      const valLabel = document.createElement('div');
+      valLabel.className = 'bar-value';
+      valLabel.textContent = arr[i];
+      bar.appendChild(valLabel);
+    }
+    
     if (i >= sortedFrom) {
       bar.classList.add('sorted');
     } else if (highlight.swapping && (i === highlight.swapping[0] || i === highlight.swapping[1])) {
@@ -402,6 +445,19 @@ function* bubbleSortGen(a) {
   yield { type: 'done' };
 }
 
+// ─── 程式碼高亮 ───────────────────────────────────────────
+function highlightCodeLine(lines = []) {
+  const codeBlock = document.getElementById('code-c');
+  if (!codeBlock) return;
+  codeBlock.querySelectorAll('.code-line').forEach(line => {
+    line.classList.remove('highlight-line');
+  });
+  lines.forEach(lineNum => {
+    const line = codeBlock.querySelector(`[data-line="${lineNum}"]`);
+    if (line) line.classList.add('highlight-line');
+  });
+}
+
 // ─── Step execution ───────────────────────────────────────
 function execStep() {
   if (!gen) return;
@@ -412,19 +468,23 @@ function execStep() {
   if (v.type === 'pass') {
     cntPass = v.pass;
     stepMsg.innerHTML = `<span class="tag tag-compare">回合</span>第 <b>${v.pass}</b> 輪掃描開始`;
-    renderBars();
+    highlightCodeLine([3, 4]);
+    renderBars({ showValues: true });
   } else if (v.type === 'compare') {
     cntCompare++;
     stepMsg.innerHTML = `<span class="tag tag-compare">比較</span> 位置 <b>${v.j}</b> (值 ${arr[v.j]}) 與位置 <b>${v.j+1}</b> (值 ${arr[v.j+1]})`;
-    renderBars({ comparing: [v.j, v.j + 1] });
+    highlightCodeLine([5]);
+    renderBars({ comparing: [v.j, v.j + 1], showValues: true });
   } else if (v.type === 'swap') {
     cntSwap++;
     stepMsg.innerHTML = `<span class="tag tag-swap">交換</span> ${arr[v.j+1]} <b>↔</b> ${arr[v.j]}　（${arr[v.j+1]} > ${arr[v.j]}，故互換）`;
-    renderBars({ swapping: [v.j, v.j + 1] });
+    highlightCodeLine([6, 7, 8]);
+    renderBars({ swapping: [v.j, v.j + 1], showValues: true });
   } else if (v.type === 'sorted') {
     sortedFrom = Math.min(sortedFrom, v.index);
     stepMsg.innerHTML = `<span class="tag tag-sorted">就位</span> 位置 <b>${v.index}</b> 的值 ${arr[v.index]} 已就定位`;
-    renderBars();
+    highlightCodeLine([]);
+    renderBars({ showValues: true });
   } else if (v.type === 'done') {
     finish(); return;
   }
@@ -433,7 +493,7 @@ function execStep() {
 
 function finish() {
   sortedFrom = 0;
-  renderBars();
+  renderBars({ showValues: true });
   stepMsg.innerHTML = `<span class="tag tag-done">完成</span> 排序結束！共 <b>${cntCompare}</b> 次比較、<b>${cntSwap}</b> 次交換`;
   status.innerHTML = `✅ 排序完成`;
   updateStats();
@@ -466,7 +526,7 @@ btnShuffle.addEventListener('click', () => {
   arr = makeArray(clampSize());
   gen = null;
   resetStats();
-  renderBars();
+  renderBars({ showValues: true });
   status.textContent = '按「開始」或「單步」以執行排序';
   stepMsg.textContent = '—';
   setRunning(false);
@@ -514,7 +574,7 @@ btnReset.addEventListener('click', () => {
   // keep same array values
   sortedFrom = Infinity;
   resetStats();
-  renderBars();
+  renderBars({ showValues: true });
   status.textContent = '已重置，可重新開始排序';
   stepMsg.textContent = '—';
   setRunning(false);
@@ -530,7 +590,7 @@ inpSize.addEventListener('change', () => {
   arr = makeArray(clampSize());
   gen = null;
   resetStats();
-  renderBars();
+  renderBars({ showValues: true });
   status.textContent = '按「開始」或「單步」以執行排序';
   stepMsg.textContent = '—';
   setRunning(false);
@@ -545,7 +605,7 @@ function clampSize() {
 
 // ─── Init ─────────────────────────────────────────────────
 arr = makeArray(40);
-renderBars();
+renderBars({ showValues: true });
 updateStats();
 spdLabel.textContent = (1010 - parseInt(inpSpeed.value)) + 'ms';
 </script>
