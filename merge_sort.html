@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>合併排序視覺化</title>
+<style>
+  :root {
+    --bg:      #0d1117;
+    --card:    #161b22;
+    --border:  #30363d;
+    --text:    #e6edf3;
+    --sub:     #8b949e;
+    --blue:    #58a6ff;
+    --yellow:  #f0c040;
+    --red:     #f85149;
+    --green:   #3fb950;
+    --purple:  #a371f7;
+    --bar-def: #1f6feb;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", "Noto Sans TC", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 16px 48px;
+  }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    margin-bottom: 4px;
+  }
+  .subtitle { color: var(--sub); font-size: .85rem; margin-bottom: 20px; }
+
+  /* ── Controls ─────────────────────────────────────── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 14px;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .82rem;
+    color: var(--sub);
+  }
+  .ctrl-group input[type=range] {
+    accent-color: var(--blue);
+    width: 100px;
+    cursor: pointer;
+  }
+  .ctrl-group input[type=number] {
+    width: 60px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 3px 6px;
+    font-size: .82rem;
+  }
+  button {
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  button:disabled { opacity: .35; cursor: default; }
+  #btn-shuffle { background: var(--purple); color: #fff; }
+  #btn-start   { background: var(--green);  color: #000; }
+  #btn-pause   { background: var(--yellow); color: #000; }
+  #btn-step    { background: var(--blue);   color: #000; }
+  #btn-reset   { background: #373e47;       color: var(--text); }
+
+  /* ── Legend ────────────────────────────────────────── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: .78rem;
+    color: var(--sub);
+    margin-top: 10px;
+  }
+  .legend span::before {
+    content: "●";
+    margin-right: 4px;
+  }
+  .legend .l-divide::before   { color: #ff8c00; }
+  .legend .l-compare::before  { color: var(--yellow); }
+  .legend .l-merge::before    { color: var(--red);    }
+  .legend .l-sorted::before   { color: var(--green);  }
+  .legend .l-default::before  { color: var(--bar-def);}
+
+  /* ── Status ─────────────────────────────────────────── */
+  #status {
+    font-size: .84rem;
+    color: var(--sub);
+    height: 18px;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+  #status b { color: var(--text); }
+
+  /* ── Bar Chart ──────────────────────────────────────── */
+  #chart {
+    width: 100%;
+    max-width: 900px;
+    height: 320px;
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    padding: 8px 0 30px 0;
+    position: relative;
+  }
+  .bar {
+    flex: 1 1 0;
+    border-radius: 3px 3px 0 0;
+    transition: height .12s ease, background-color .12s ease;
+    background: var(--bar-def);
+    min-width: 2px;
+    position: relative;
+  }
+  .bar.dividing { background: #ff8c00; }
+  .bar.comparing { background: var(--yellow); }
+  .bar.merging  { background: var(--red);    }
+  .bar.sorted    { background: var(--green);  }
+  .bar-value {
+    position: absolute;
+    bottom: -24px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: .7rem;
+    color: var(--sub);
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  /* ── Algorithm panel ────────────────────────────────── */
+  .algo-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    width: 100%;
+    max-width: 900px;
+    margin-top: 14px;
+  }
+  .algo-card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: var(--blue);
+  }
+  .algo-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media(max-width:600px){ .algo-grid{ grid-template-columns:1fr; } }
+  .algo-block h3 {
+    font-size: .8rem;
+    color: var(--sub);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: .78rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    color: #e6edf3;
+  }
+  .code-line {
+    display: flex;
+    align-items: center;
+  }
+  .code-line-num {
+    display: inline-block;
+    width: 30px;
+    text-align: right;
+    margin-right: 10px;
+    opacity: 0.5;
+    user-select: none;
+  }
+  .code-line-content {
+    flex: 1;
+    padding-right: 8px;
+  }
+  .code-line.highlight-line {
+    background: rgba(88,166,255,.3);
+    border-left: 2px solid var(--blue);
+    margin: 0 -20px;
+    padding: 0 20px;
+  }
+  .stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: .82rem;
+    color: var(--sub);
+    margin-top: 10px;
+  }
+  .stats strong { color: var(--text); font-size: 1.15rem; }
+  .step-indicator {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: .82rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    margin-top: 10px;
+    min-height: 36px;
+    line-height: 1.6;
+  }
+  .step-indicator .tag {
+    display: inline-block;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-weight: 700;
+    font-size: .75rem;
+    margin-right: 6px;
+  }
+  .tag-divide { background: #ff8c00; color: #fff; }
+  .tag-compare { background: var(--yellow); color: #000; }
+  .tag-merge   { background: var(--red);    color: #fff; }
+  .tag-sorted  { background: var(--green);  color: #000; }
+  .tag-done    { background: var(--purple); color: #fff; }
+</style>
+</head>
+<body>
+
+<h1>🔀 合併排序視覺化</h1>
+<p class="subtitle">Merge Sort — 逐步觀察分割與合併過程</p>
+<p style="margin-bottom: 16px;"><a href="index.html" style="color: var(--blue); text-decoration: none; font-size: 0.85rem;">← 回首頁</a></p>
+
+<!-- Controls -->
+<div class="card">
+  <div class="controls">
+    <div class="ctrl-group">
+      <label for="inp-size">陣列大小</label>
+      <input type="number" id="inp-size" min="5" max="120" value="32" />
+    </div>
+    <div class="ctrl-group">
+      <label for="inp-speed">動畫速度</label>
+      <input type="range" id="inp-speed" min="10" max="900" value="250" />
+      <span id="speed-label">250ms</span>
+    </div>
+    <button id="btn-shuffle">🔀 亂數重置</button>
+    <button id="btn-start">▶ 開始</button>
+    <button id="btn-pause" disabled>⏸ 暫停</button>
+    <button id="btn-step">⏭ 單步</button>
+    <button id="btn-reset">↺ 重置</button>
+  </div>
+  <div class="legend">
+    <span class="l-default">未處理</span>
+    <span class="l-divide">分割中</span>
+    <span class="l-compare">比較中</span>
+    <span class="l-merge">合併中</span>
+    <span class="l-sorted">已排序</span>
+  </div>
+</div>
+
+<!-- Status -->
+<div id="status">按「開始」或「單步」以執行排序</div>
+
+<!-- Bar Chart -->
+<div id="chart"></div>
+
+<!-- Step Indicator + Stats -->
+<div class="card" style="margin-top:14px">
+  <div class="step-indicator" id="step-msg">—</div>
+  <div class="stats">
+    <div>比較次數 <br/><strong id="cnt-compare">0</strong></div>
+    <div>合併次數 <br/><strong id="cnt-merge">0</strong></div>
+    <div>分割深度 <br/><strong id="cnt-depth">0</strong></div>
+    <div>已排序段 <br/><strong id="cnt-sorted">0</strong></div>
+  </div>
+</div>
+
+<!-- Algorithm Explanation -->
+<div class="algo-card">
+  <h2>合併排序演算法解說</h2>
+  <div class="algo-grid">
+    <div class="algo-block">
+      <h3>C 語言實作</h3>
+      <pre id="code-c"><span class="code-line" data-line="1"><span class="code-line-num">1</span><span class="code-line-content">void merge(int arr[], int left, int mid, int right) {</span></span>
+<span class="code-line" data-line="2"><span class="code-line-num">2</span><span class="code-line-content">    int i = left, j = mid + 1, k = 0;       // 指標初始化</span></span>
+<span class="code-line" data-line="3"><span class="code-line-num">3</span><span class="code-line-content">    int temp[right - left + 1];</span></span>
+<span class="code-line" data-line="4"><span class="code-line-num">4</span><span class="code-line-content">    while (i <= mid && j <= right) {        // 比較兩側</span></span>
+<span class="code-line" data-line="5"><span class="code-line-num">5</span><span class="code-line-content">        if (arr[i] <= arr[j]) {</span></span>
+<span class="code-line" data-line="6"><span class="code-line-num">6</span><span class="code-line-content">            temp[k++] = arr[i++];              // 左側較小，取左</span></span>
+<span class="code-line" data-line="7"><span class="code-line-num">7</span><span class="code-line-content">        } else {</span></span>
+<span class="code-line" data-line="8"><span class="code-line-num">8</span><span class="code-line-content">            temp[k++] = arr[j++];              // 右側較小，取右</span></span>
+<span class="code-line" data-line="9"><span class="code-line-num">9</span><span class="code-line-content">        }</span></span>
+<span class="code-line" data-line="10"><span class="code-line-num">10</span><span class="code-line-content">    }</span></span>
+<span class="code-line" data-line="11"><span class="code-line-num">11</span><span class="code-line-content">    while (i <= mid) temp[k++] = arr[i++]; // 複製剩餘左側</span></span>
+<span class="code-line" data-line="12"><span class="code-line-num">12</span><span class="code-line-content">    while (j <= right) temp[k++] = arr[j++];</span></span>
+<span class="code-line" data-line="13"><span class="code-line-num">13</span><span class="code-line-content">    for (i = left, k = 0; i <= right; i++, k++) {</span></span>
+<span class="code-line" data-line="14"><span class="code-line-num">14</span><span class="code-line-content">        arr[i] = temp[k];                  // 複製回 arr</span></span>
+<span class="code-line" data-line="15"><span class="code-line-num">15</span><span class="code-line-content">    }</span></span>
+<span class="code-line" data-line="16"><span class="code-line-num">16</span><span class="code-line-content">}</span></span>
+<span class="code-line" data-line="17"><span class="code-line-num">17</span><span class="code-line-content">void merge_sort(int arr[], int left, int right) {</span></span>
+<span class="code-line" data-line="18"><span class="code-line-num">18</span><span class="code-line-content">    if (left < right) {</span></span>
+<span class="code-line" data-line="19"><span class="code-line-num">19</span><span class="code-line-content">        int mid = left + (right - left) / 2;  // 避免溢位</span></span>
+<span class="code-line" data-line="20"><span class="code-line-num">20</span><span class="code-line-content">        merge_sort(arr, left, mid);            // 分割左半</span></span>
+<span class="code-line" data-line="21"><span class="code-line-num">21</span><span class="code-line-content">        merge_sort(arr, mid + 1, right);       // 分割右半</span></span>
+<span class="code-line" data-line="22"><span class="code-line-num">22</span><span class="code-line-content">        merge(arr, left, mid, right);          // 合併</span></span>
+<span class="code-line" data-line="23"><span class="code-line-num">23</span><span class="code-line-content">    }</span></span>
+<span class="code-line" data-line="24"><span class="code-line-num">24</span><span class="code-line-content">}</span></span></pre>
+    </div>
+    <div class="algo-block">
+      <h3>複雜度分析</h3>
+      <pre>時間複雜度
+  最佳 O(n log n)
+  平均 O(n log n)
+  最差 O(n log n)
+
+空間複雜度
+  O(n)         ← 需要額外空間
+
+穩定性
+  穩定（Stable）
+
+特性
+  分治演算法、時間複雜度穩定
+  需要額外記憶空間、快速排序
+  適合大型資料集合</pre>
+    </div>
+  </div>
+  <div class="algo-block" style="margin-top:14px">
+    <h3>核心概念</h3>
+    <pre>分治法：將陣列「分割」成左右兩半（遞歸）→ 對兩半分別排序 → 「合併」兩個已排序的部分。
+最底層將單個元素視為已排序，從底向上逐次合併。時間複雜度恆定 O(n log n)，但需額外 O(n) 記憶空間。</pre>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────
+let arr = [];
+let originalArr = [];
+let gen = null;
+let running = false;
+let paused = false;
+let timer = null;
+let cntCompare = 0;
+let cntMerge = 0;
+let cntDepth = 0;
+let cntSorted = 0;
+let sortedRanges = []; // 已排序的段
+
+// ─── DOM refs ─────────────────────────────────────────────
+const chart    = document.getElementById('chart');
+const status   = document.getElementById('status');
+const stepMsg  = document.getElementById('step-msg');
+const elCC     = document.getElementById('cnt-compare');
+const elCM     = document.getElementById('cnt-merge');
+const elCD     = document.getElementById('cnt-depth');
+const elCS     = document.getElementById('cnt-sorted');
+const inpSize  = document.getElementById('inp-size');
+const inpSpeed = document.getElementById('inp-speed');
+const spdLabel = document.getElementById('speed-label');
+const btnStart  = document.getElementById('btn-start');
+const btnPause  = document.getElementById('btn-pause');
+const btnStep   = document.getElementById('btn-step');
+const btnShuffle= document.getElementById('btn-shuffle');
+const btnReset  = document.getElementById('btn-reset');
+
+// ─── Array helpers ────────────────────────────────────────
+function makeArray(n) {
+  const a = [];
+  for (let i = 0; i < n; i++) a.push(Math.floor(Math.random() * 98) + 2);
+  return a;
+}
+
+function renderBars(highlight = {}) {
+  // highlight: { dividing:[...], comparing:[i,j], merging:[i,j], sorted_ranges:[...], showValues:boolean }
+  const n = arr.length;
+  const max = Math.max(...arr);
+  const bars = chart.querySelectorAll('.bar');
+
+  if (bars.length !== n) {
+    chart.innerHTML = '';
+    for (let i = 0; i < n; i++) {
+      const d = document.createElement('div');
+      d.className = 'bar';
+      d.style.position = 'relative';
+      chart.appendChild(d);
+    }
+  }
+
+  chart.querySelectorAll('.bar').forEach((bar, i) => {
+    bar.style.height = (arr[i] / max * 100) + '%';
+    bar.className = 'bar';
+    
+    // 清除之前的數值標籤
+    const oldValue = bar.querySelector('.bar-value');
+    if (oldValue) oldValue.remove();
+    
+    // 添加數值標籤
+    if (highlight.showValues) {
+      const valLabel = document.createElement('div');
+      valLabel.className = 'bar-value';
+      valLabel.textContent = arr[i];
+      bar.appendChild(valLabel);
+    }
+    
+    // 判斷是否在已排序的段中
+    let isSorted = false;
+    if (highlight.sorted_ranges) {
+      for (let range of highlight.sorted_ranges) {
+        if (i >= range[0] && i <= range[1]) {
+          isSorted = true;
+          break;
+        }
+      }
+    }
+    
+    if (isSorted) {
+      bar.classList.add('sorted');
+    } else if (highlight.merging && (i >= highlight.merging[0] && i <= highlight.merging[1])) {
+      bar.classList.add('merging');
+    } else if (highlight.comparing && (i === highlight.comparing[0] || i === highlight.comparing[1])) {
+      bar.classList.add('comparing');
+    } else if (highlight.dividing && highlight.dividing.includes(i)) {
+      bar.classList.add('dividing');
+    }
+  });
+}
+
+function resetStats() {
+  cntCompare = 0; cntMerge = 0; cntDepth = 0; cntSorted = 0;
+  sortedRanges = [];
+  updateStats();
+}
+
+function updateStats() {
+  elCC.textContent = cntCompare;
+  elCM.textContent = cntMerge;
+  elCD.textContent = cntDepth;
+  elCS.textContent = cntSorted;
+}
+
+// ─── Generator ────────────────────────────────────────────
+function* mergeSortGen(a) {
+  const n = a.length;
+  
+  // 遞迴合併排序
+  function* doMergeSort(left, right, depth) {
+    if (left >= right) {
+      if (left === right) {
+        yield { type: 'element-sorted', index: left };
+      }
+      return;
+    }
+    
+    const mid = Math.floor((left + right) / 2);
+    
+    // 分割左側
+    yield* doMergeSort(left, mid, depth + 1);
+    // 分割右側
+    yield* doMergeSort(mid + 1, right, depth + 1);
+    
+    // 合併
+    yield { type: 'merge-start', left, mid, right, depth };
+    yield* doMerge(left, mid, right);
+    yield { type: 'merge-end', left, right };
+  }
+  
+  function* doMerge(left, mid, right) {
+    const temp = [];
+    let i = left, j = mid + 1;
+    
+    while (i <= mid && j <= right) {
+      cntCompare++;
+      yield { type: 'compare', i, j };
+      
+      if (a[i] <= a[j]) {
+        temp.push(a[i++]);
+      } else {
+        temp.push(a[j++]);
+      }
+      yield { type: 'merge-progress', left, right, temp_len: temp.length };
+    }
+    
+    while (i <= mid) {
+      temp.push(a[i++]);
+      yield { type: 'merge-progress', left, right, temp_len: temp.length };
+    }
+    
+    while (j <= right) {
+      temp.push(a[j++]);
+      yield { type: 'merge-progress', left, right, temp_len: temp.length };
+    }
+    
+    // 複製回陣列
+    for (let k = 0; k < temp.length; k++) {
+      a[left + k] = temp[k];
+    }
+    
+    cntMerge++;
+    cntSorted++;
+    sortedRanges.push([left, right]);
+    yield { type: 'sorted-range-added', left, right };
+  }
+  
+  yield* doMergeSort(0, n - 1, 0);
+  yield { type: 'done' };
+}
+
+// ─── 程式碼高亮 ────────────────────────────────────────────────────────────────────────────────────────────────
+function highlightCodeLine(lines = []) {
+  const codeBlock = document.getElementById('code-c');
+  if (!codeBlock) return;
+  codeBlock.querySelectorAll('.code-line').forEach(line => {
+    line.classList.remove('highlight-line');
+  });
+  lines.forEach(lineNum => {
+    const line = codeBlock.querySelector(`[data-line="${lineNum}"]`);
+    if (line) line.classList.add('highlight-line');
+  });
+}
+
+// ─── Step execution ───────────────────────────────────────
+function execStep() {
+  if (!gen) return;
+  const { value, done } = gen.next();
+  if (done) { finish(); return; }
+
+  const v = value;
+  if (v.type === 'element-sorted') {
+    stepMsg.innerHTML = `<span class="tag tag-sorted">單元</span> 位置 <b>${v.index}</b> 為最小單位，已排序`;
+    highlightCodeLine([18]);
+    renderBars({ showValues: true, sorted_ranges: sortedRanges });
+  } else if (v.type === 'compare') {
+    stepMsg.innerHTML = `<span class="tag tag-compare">比較</span> 位置 <b>${v.i}</b> (值 ${arr[v.i]}) 與位置 <b>${v.j}</b> (值 ${arr[v.j]})`;
+    highlightCodeLine([4, 5]);
+    renderBars({ comparing: [v.i, v.j], showValues: true, sorted_ranges: sortedRanges });
+  } else if (v.type === 'merge-start') {
+    cntDepth = Math.max(cntDepth, v.depth);
+    stepMsg.innerHTML = `<span class="tag tag-merge">合併</span> 從位置 <b>${v.left}</b> 到 <b>${v.right}</b> 的段（深度 ${v.depth}）`;
+    highlightCodeLine([22]);
+    renderBars({ merging: [v.left, v.right], showValues: true, sorted_ranges: sortedRanges });
+  } else if (v.type === 'merge-progress') {
+    stepMsg.innerHTML = `<span class="tag tag-merge">合併中</span> 位置 <b>${v.left}</b>-<b>${v.right}</b>：已處理 <b>${v.temp_len}</b> 個元素`;
+    highlightCodeLine([13, 14]);
+    renderBars({ merging: [v.left, v.right], showValues: true, sorted_ranges: sortedRanges });
+  } else if (v.type === 'sorted-range-added') {
+    stepMsg.innerHTML = `<span class="tag tag-sorted">完成</span> 位置 <b>${v.left}</b>-<b>${v.right}</b> 的段已排序`;
+    highlightCodeLine([]);
+    renderBars({ showValues: true, sorted_ranges: sortedRanges });
+  } else if (v.type === 'merge-end') {
+    stepMsg.innerHTML = `<span class="tag tag-merge">合併結束</span> 位置 <b>${v.left}</b>-<b>${v.right}</b>`;
+    highlightCodeLine([]);
+    renderBars({ showValues: true, sorted_ranges: sortedRanges });
+  }
+  updateStats();
+}
+
+function finish() {
+  sortedRanges = [[0, arr.length - 1]];
+  renderBars({ showValues: true, sorted_ranges: sortedRanges });
+  stepMsg.innerHTML = `<span class="tag tag-done">完成</span> 排序結束！共 <b>${cntCompare}</b> 次比較、<b>${cntMerge}</b> 次合併`;
+  status.innerHTML = `✅ 排序完成`;
+  updateStats();
+  setRunning(false);
+  gen = null;
+}
+
+// ─── Auto run ─────────────────────────────────────────────
+function scheduleNext() {
+  if (!running || paused) return;
+  const delay = 1010 - parseInt(inpSpeed.value);
+  timer = setTimeout(() => {
+    execStep();
+    if (gen) scheduleNext();
+  }, delay);
+}
+
+function setRunning(val) {
+  running = val;
+  btnStart.disabled  = val && !paused;
+  btnPause.disabled  = !val || paused;
+  btnStep.disabled   = val && !paused;
+  btnShuffle.disabled = val && !paused;
+}
+
+// ─── Controls ─────────────────────────────────────────────
+btnShuffle.addEventListener('click', () => {
+  clearTimeout(timer);
+  paused = false; running = false;
+  arr = makeArray(clampSize());
+  originalArr = [...arr];
+  gen = null;
+  sortedRanges = [];
+  resetStats();
+  renderBars({ showValues: true });
+  status.textContent = '按「開始」或「單步」以執行排序';
+  stepMsg.textContent = '—';
+  setRunning(false);
+});
+
+btnStart.addEventListener('click', () => {
+  if (!gen) {
+    arr = [...originalArr];
+    sortedRanges = [];
+    gen = mergeSortGen(arr);
+    resetStats();
+  }
+  paused = false;
+  setRunning(true);
+  status.textContent = '排序中…';
+  scheduleNext();
+});
+
+btnPause.addEventListener('click', () => {
+  paused = true;
+  clearTimeout(timer);
+  setRunning(false); // re-enable buttons
+  btnPause.disabled = true;
+  btnStart.disabled = false;
+  btnStep.disabled  = false;
+  status.textContent = '已暫停，按「開始」繼續或「單步」前進';
+});
+
+btnStep.addEventListener('click', () => {
+  clearTimeout(timer);
+  paused = true;
+  running = false;
+  if (!gen) {
+    arr = [...originalArr];
+    sortedRanges = [];
+    gen = mergeSortGen(arr);
+    resetStats();
+    status.textContent = '單步模式';
+  }
+  execStep();
+  setRunning(false);
+  btnPause.disabled = true;
+});
+
+btnReset.addEventListener('click', () => {
+  clearTimeout(timer);
+  paused = false; running = false;
+  arr = [...originalArr];
+  gen = null;
+  sortedRanges = [];
+  resetStats();
+  renderBars({ showValues: true });
+  status.textContent = '已重置，可重新開始排序';
+  stepMsg.textContent = '—';
+  setRunning(false);
+});
+
+inpSpeed.addEventListener('input', () => {
+  spdLabel.textContent = (1010 - parseInt(inpSpeed.value)) + 'ms';
+});
+
+inpSize.addEventListener('change', () => {
+  clearTimeout(timer);
+  paused = false; running = false;
+  arr = makeArray(clampSize());
+  originalArr = [...arr];
+  gen = null;
+  sortedRanges = [];
+  resetStats();
+  renderBars({ showValues: true });
+  status.textContent = '按「開始」或「單步」以執行排序';
+  stepMsg.textContent = '—';
+  setRunning(false);
+});
+
+function clampSize() {
+  let n = parseInt(inpSize.value) || 32;
+  n = Math.max(5, Math.min(120, n));
+  inpSize.value = n;
+  return n;
+}
+
+// ─── Init ─────────────────────────────────────────────────
+arr = makeArray(32);
+originalArr = [...arr];
+renderBars({ showValues: true });
+updateStats();
+spdLabel.textContent = (1010 - parseInt(inpSpeed.value)) + 'ms';
+</script>
+</body>
+</html>
